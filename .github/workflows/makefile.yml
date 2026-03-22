@@ -1,27 +1,20 @@
-name: Makefile CI
+name: Build QMK firmware
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+on: [push, workflow_dispatch]
+
+permissions:
+  contents: write
 
 jobs:
   build:
+    name: 'QMK Userspace Build'
+    uses: qmk/.github/.github/workflows/qmk_userspace_build.yml@main
+    with:
+      qmk_repo: bastardkb/bastardkb-qmk
+      qmk_ref: bkb-master
 
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: configure
-      run: ./configure
-
-    - name: Install dependencies
-      run: make
-
-    - name: Run check
-      run: make check
-
-    - name: Run distcheck
-      run: make distcheck
+  publish:
+    name: 'QMK Userspace Publish'
+    uses: qmk/.github/.github/workflows/qmk_userspace_publish.yml@main
+    if: always() && !cancelled()
+    needs: build
