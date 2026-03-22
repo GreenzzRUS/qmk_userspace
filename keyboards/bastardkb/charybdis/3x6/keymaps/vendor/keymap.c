@@ -14,37 +14,64 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+/**
+ * Charybdis 3x6 Keymap - Merged with keymap-36.c functionality
+ * Based on original Charybdis keymap by Charly Delay
+ * Enhanced with layers, one-shot mods, and swapper from keymap-36.c
+ */
+
 #include QMK_KEYBOARD_H
 
 #include "timer.h"
 #include "oneshot.h"
 #include "swapper.h"
 
-#define RESET QK_BOOT
-
+// ============================================================================
+// LAYERS
+// ============================================================================
 enum charybdis_keymap_layers {
     LAYER_BASE = 0,
     LAYER_LOWER,
     LAYER_RAISE,
     LAYER_POINTER,
-    LAYER_DEF,
-    LAYER_GAM,
-    LAYER_GFN,
     LAYER_SYM,
     LAYER_NAV,
-    LAYER_NUM,
+    LAYER_NUM,      // Tri-layer: SYM + NAV
     LAYER_ALT,
     LAYER_CMD,
 };
 
-#define ___ KC_NO
+// ============================================================================
+// CHARYBDIS-SPECIFIC SETTINGS
+// ============================================================================
+#define CHARYBDIS_AUTO_SNIPING_ON_LAYER LAYER_POINTER
 
-#define LA_SYM MO(_SYM)
-#define LA_ALT MO(_ALT)
-#define LA_NAV MO(_NAV)
-#define LA_CMD MO(_CMD)
-#define LA_GFN MO(_GFN)
+#ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
+static uint16_t auto_pointer_layer_timer = 0;
+#    ifndef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS
+#        define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS 1000
+#    endif
+#    ifndef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD
+#        define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD 8
+#    endif
+#endif
 
+// ============================================================================
+// KEYCODE DEFINITIONS
+// ============================================================================
+#define LOWER MO(LAYER_LOWER)
+#define RAISE MO(LAYER_RAISE)
+#define PT_Z LT(LAYER_POINTER, KC_Z)
+#define PT_SLSH LT(LAYER_POINTER, KC_SLSH)
+
+// Layers from keymap-36.c
+#define LA_SYM MO(LAYER_SYM)
+#define LA_NAV MO(LAYER_NAV)
+#define LA_ALT MO(LAYER_ALT)
+#define LA_CMD MO(LAYER_CMD)
+
+// Special characters
 #define QUOT  S(KC_GRV)
 #define PIPE  S(KC_BSLS)
 #define DPIPE S(RALT(KC_BSLS))
@@ -53,136 +80,192 @@ enum charybdis_keymap_layers {
 #define GRV   RALT(KC_GRV)
 #define BSL   RALT(KC_BSLS)
 #define NBSP  RALT(KC_SPC)
-
 #define SPACE_L C(G(KC_LEFT))
 #define SPACE_R C(G(KC_RGHT))
-
 #define TAB_L C(S(KC_TAB))
 #define TAB_R C(KC_TAB)
 
+// Custom keycodes for one-shot mods and swapper
 enum keycodes {
-    // Custom oneshot mod implementation with no timers.
     OS_SHFT = SAFE_RANGE,
     OS_CTRL,
     OS_ALT,
     OS_CMD,
-    SW_WIN,  // Switch to next window         (alt-tab)
-    SW_TAB,  // Switch to next browser tab    (ctrl-tab)
+    SW_WIN,
+    SW_TAB,
 };
 
-/** \brief Automatically enable sniping-mode on the pointer layer. */
-#define CHARYBDIS_AUTO_SNIPING_ON_LAYER LAYER_POINTER
-
-#ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
-static uint16_t auto_pointer_layer_timer = 0;
-
-#ifndef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS
-#define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS 1000
-#endif // CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS
-
-#ifndef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD
-#define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD 8
-#endif // CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD
-#endif     // CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
-
-// #define LOWER MO(LAYER_LOWER)
-// #define RAISE MO(LAYER_RAISE)
-// #define PT_Z LT(LAYER_POINTER, KC_Z)
-// #define PT_SLSH LT(LAYER_POINTER, KC_SLSH)
-
-// clang-format off
+// ============================================================================
+// KEYMAPS
+// ============================================================================
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    [LAYER_DEF] = LAYOUT(
-KC_NO,      KC_Q,       KC_W,       KC_E,       KC_R,       KC_T,             KC_Y,       KC_U,       KC_I,       KC_O,       KC_P,        KC_NO,      
-KC_NO,      KC_A,       KC_S,       KC_D,       KC_F,       KC_G,             KC_H,       KC_J,       KC_K,       KC_L,       KC_SCLN,     KC_NO,      
-KC_NO,      KC_Z,       KC_X,       KC_C,       KC_V,       KC_B,             KC_N,       KC_M,       KC_COMM,    KC_DOT,     KC_SLSH,     KC_NO,      
-                                    KC_CAPS,    KC_SPC,     LA_NAV,           LA_SYM,     KC_LSFT
-    ),
 
-    [LAYER_GAM] = LAYOUT(
-KC_NO,     KC_TAB,     KC_Q,       KC_W,       KC_E,       KC_R,             ___,        ___,        KC_UP,      ___,        KC_TAB,    KC_NO,     
-KC_NO,     KC_LSFT,    KC_A,       KC_S,       KC_D,       KC_F,             ___,        KC_LEFT,    KC_DOWN,    KC_RGHT,    KC_RSFT,   KC_NO,     
-KC_NO,     KC_LCTL,    KC_Z,       KC_X,       KC_C,       KC_V,             ___,        ___,        ___,        ___,        KC_RCTL,   KC_NO,     
-                                   KC_LALT,    KC_SPC,     LA_GFN,           DF(_DEF),   KC_SPC
-    ),
+/* BASE LAYER
+ * ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐       ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+ * │   Tab   │    Q    │    W    │    E    │    R    │    T    │       │    Y    │    U    │    I    │    O    │    P    │   GUI   │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │   Shift │    A    │    S    │    D    │    F    │    G    │       │    H    │    J    │    K    │    L    │   ;     │   Ctrl  │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │   Ctrl  │    Z    │    X    │    C    │    V    │    B    │       │    N    │    M    │    ,    │    .    │    /    │   Shift │
+ * └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘       └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+ *                         ┌─────────┬─────────┬─────────┐           ┌─────────┬─────────┬─────────┐
+ *                         │  Bksp   │   Nav   │   Space │           │   Ent   │   Sym   │  Shift  │
+ *                         └─────────┴─────────┴─────────┘           └─────────┴─────────┴─────────┘
+ */
+[LAYER_BASE] = LAYOUT(
+    KC_TAB,    KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,           KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_RGUI,
+    KC_LSFT,   KC_A,    KC_S,    KC_D,    KC_F,    KC_G,           KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_RCTL,
+    KC_LCTL,   PT_Z,    KC_X,    KC_C,    KC_V,    KC_B,           KC_N,    KC_M,    KC_COMM, KC_DOT,  PT_SLSH, KC_RSFT,
+                                 KC_BSPC,   LA_NAV,  KC_SPC,       KC_ENT,  LA_SYM
+),
 
-    [LAYER_GFN] = LAYOUT(
-KC_NO,     KC_5,       KC_1,       KC_2,       KC_3,       KC_4,             KC_NUM,     ___,        ___,        ___,        ___,        KC_NO,     
-KC_NO,     KC_0,       KC_6,       KC_7,       KC_8,       KC_9,             ___,        ___,        ___,        ___,        ___,        KC_NO,     
-KC_NO,     KC_G,       KC_J,       KC_I,       KC_M,       KC_T,             ___,        ___,        ___,        QK_RBT,     QK_BOOT,    KC_NO,     
-                                   KC_ESC,     KC_ENT,     _______,          _______,    _______
-    ),
+/* LOWER LAYER (Media & Numbers)
+ */
+[LAYER_LOWER] = LAYOUT(
+    XXXXXXX,   RGB_TOG, KC_MNXT, KC_MPLY, KC_MPRV, XXXXXXX,        KC_LBRC, KC_7,    KC_8,    KC_9,    KC_RBRC, XXXXXXX,
+    XXXXXXX,   KC_LGUI, KC_LALT, KC_LCTL, KC_LSFT, XXXXXXX,        KC_PPLS, KC_4,    KC_5,    KC_6,    KC_PMNS, XXXXXXX,
+    XXXXXXX,   XXXXXXX, XXXXXXX, XXXXXXX, EE_CLR,  QK_BOOT,        KC_PAST, KC_1,    KC_2,    KC_3,    KC_PSLS, XXXXXXX,
+                                 XXXXXXX,   XXXXXXX, _______,          XXXXXXX, _______
+),
 
-    [LAYER_SYM] = LAYOUT(
-KC_NO,     KC_1,       KC_2,       KC_3,       KC_4,       KC_5,             KC_6,       KC_7,       KC_8,       KC_9,       KC_0,       KC_NO,     
-KC_NO,     KC_SCLN,    GRV,        KC_GRV,     QUOT,       KC_MINS,          KC_PLUS,    OS_SHFT,    OS_CTRL,    OS_ALT,     OS_CMD,     KC_NO,     
-KC_NO,     BSL,        DPIPE,      SCLN,       KC_LBRC,    KC_UNDS,          KC_EQL,     KC_RBRC,    CLN,        PIPE,       KC_BSLS,    KC_NO,     
-                                   _______,    _______,    _______,          _______,    _______
-    ),
+/* RAISE LAYER (Navigation & Volume)
+ */
+[LAYER_RAISE] = LAYOUT(
+    XXXXXXX,   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,        XXXXXXX, KC_VOLU, KC_MUTE, KC_VOLD, XXXXXXX, XXXXXXX,
+    XXXXXXX,   KC_LEFT, KC_UP,   KC_DOWN, KC_RGHT, XXXXXXX,        XXXXXXX, KC_RSFT, KC_RCTL, KC_RALT, KC_RGUI, XXXXXXX,
+    XXXXXXX,   KC_HOME, KC_PGUP, KC_PGDN, KC_END,  XXXXXXX,        QK_BOOT, EE_CLR,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+                                 _______,   _______, XXXXXXX,          _______, XXXXXXX
+),
 
+/* POINTER LAYER (Trackball controls)
+ */
+[LAYER_POINTER] = LAYOUT(
+    QK_BOOT,   EE_CLR,  XXXXXXX, XXXXXXX, DPI_MOD, S_D_MOD,        S_D_MOD, DPI_MOD, XXXXXXX, XXXXXXX, EE_CLR,  QK_BOOT,
+    XXXXXXX,   KC_LGUI, KC_LALT, KC_LCTL, KC_LSFT, XXXXXXX,        XXXXXXX, KC_RSFT, KC_RCTL, KC_RALT, KC_RGUI, XXXXXXX,
+    XXXXXXX,   _______, DRGSCRL, SNIPING, XXXXXXX, XXXXXXX,        XXXXXXX, XXXXXXX, SNIPING, DRGSCRL, _______, XXXXXXX,
+                                 KC_BTN2,   KC_BTN1, KC_BTN3,      KC_BTN3, KC_BTN1
+),
 
-    [LAYER_NAV] = LAYOUT(
-KC_NO,     SW_TAB,     SW_WIN,     TAB_L,      TAB_R,      KC_ESC,           KC_ESC,     KC_HOME,    KC_END,     KC_BSPC,    KC_DEL,    KC_NO,     
-KC_NO,     OS_CMD,     OS_ALT,     OS_CTRL,    OS_SHFT,    KC_ENT,           KC_ENT,     KC_LEFT,    KC_DOWN,    KC_UP,      KC_RGHT,   KC_NO,     
-KC_NO,     SPACE_L,    SPACE_R,    DF(_GAM),   KC_PSCR,    KC_TAB,           KC_TAB,     KC_PGUP,    KC_PGDN,    KC_QUOT,    KC_NUM,    KC_NO,     
-                                   LA_CMD,     _______,    _______,          _______,    _______
-    ),
+/* SYM LAYER (Symbols & One-shot mods)
+ * ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐       ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+ * │    1    │    2    │    3    │    4    │    5    │    6    │       │    7    │    8    │    9    │    0    │   =     │   -     │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │   ;     │   `     │   ~     │   '     │   -     │   +     │       │   OShft │ OSCtrl  │ OSAlt   │ OSCmd   │   [     │   ]     │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │   \     │   ||    │   :     │   [     │   _     │   =     │       │   ]     │   :     │   |     │   \     │   ,     │   .     │
+ * └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘       └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+ *                         ┌─────────┬─────────┬─────────┐           ┌─────────┬─────────┬─────────┐
+ *                         │         │         │         │           │         │         │         │
+ *                         └─────────┴─────────┴─────────┘           └─────────┴─────────┴─────────┘
+ */
+[LAYER_SYM] = LAYOUT(
+    KC_1,      KC_2,    KC_3,    KC_4,    KC_5,    KC_6,           KC_7,    KC_8,    KC_9,    KC_0,    KC_EQL,  KC_MINS,
+    SCLN,      GRV,     KC_GRV,  QUOT,    KC_MINS, KC_PLUS,        OS_SHFT, OS_CTRL, OS_ALT,  OS_CMD,  KC_LBRC, KC_RBRC,
+    BSL,       DPIPE,   SCLN,    KC_LBRC, KC_UNDS, KC_EQL,         KC_RBRC, CLN,     PIPE,    KC_BSLS, KC_COMM, KC_DOT,
+                                 _______,   _______, _______,      _______, _______
+),
 
-    [LAYER_NUM] = LAYOUT(
-KC_NO,     KC_P1,      KC_P2,      KC_P3,      KC_P4,      KC_P5,            KC_P6,      KC_P7,      KC_P8,      KC_P9,      KC_P0,     KC_NO,     
-KC_NO,     OS_CMD,     OS_ALT,     OS_CTRL,    OS_SHFT,    KC_F11,           KC_F12,     OS_SHFT,    OS_CTRL,    OS_ALT,     OS_CMD,    KC_NO,     
-KC_NO,     KC_F1,      KC_F2,      KC_F3,      KC_F4,      KC_F5,            KC_F6,      KC_F7,      KC_F8,      KC_F9,      KC_F10,    KC_NO,     
-                                   _______,    _______,    _______,          _______,    _______
-    ),
+/* NAV LAYER (Navigation & Window switching)
+ * ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐       ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+ * │  SwTab  │  SwWin  │  TabL   │  TabR   │   Esc   │   Esc   │       │   Home  │   End   │  Bksp   │   Del   │   Ins   │   PgUp  │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │  OSCmd  │  OSAlt  │ OSCtrl   │ OShft   │   Ent   │   Ent   │       │   Left  │  Down   │   Up    │  Right  │   PgDn  │   PgUp  │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │ SpaceL  │ SpaceR  │  Game   │  PrtSc  │   Tab   │   Tab   │       │   Vol-  │  Vol+   │  Mute   │   Play  │   Stop  │   PgDn  │
+ * └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘       └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+ *                         ┌─────────┬─────────┬─────────┐           ┌─────────┬─────────┬─────────┐
+ *                         │   Cmd   │         │         │           │         │         │         │
+ *                         └─────────┴─────────┴─────────┘           └─────────┴─────────┴─────────┘
+ */
+[LAYER_NAV] = LAYOUT(
+    SW_TAB,    SW_WIN,  TAB_L,   TAB_R,   KC_ESC,  KC_ESC,         KC_HOME, KC_END,  KC_BSPC, KC_DEL,  KC_INS,  KC_PGUP,
+    OS_CMD,    OS_ALT,  OS_CTRL, OS_SHFT, KC_ENT,  KC_ENT,         KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, KC_PGDN, KC_PGUP,
+    SPACE_L,   SPACE_R, DF(_GAM), KC_PSCR, KC_TAB,  KC_TAB,        KC_VOLD, KC_VOLU, KC_MUTE, KC_MPLY, KC_MSTP, KC_PGDN,
+                                 LA_CMD,    _______, _______,          _______, _______
+),
 
-    [LAYER_ALT] = LAYOUT(
-KC_NO,     RALT(KC_Q), RALT(KC_W), RALT(KC_E), RALT(KC_R), RALT(KC_T),       RALT(KC_Y), RALT(KC_U), RALT(KC_I),    RALT(KC_O),   RALT(KC_P),       KC_NO,     
-KC_NO,     RALT(KC_A), RALT(KC_S), RALT(KC_D), RALT(KC_F), RALT(KC_G),       RALT(KC_H), RALT(KC_J), RALT(KC_K),    RALT(KC_L),   RALT(KC_SCLN),    KC_NO,     
-KC_NO,     RALT(KC_Z), RALT(KC_X), RALT(KC_C), RALT(KC_V), RALT(KC_B),       RALT(KC_N), RALT(KC_M), RALT(KC_COMM), RALT(KC_DOT), RALT(KC_SLSH),    KC_NO,     
-                                   _______,    NBSP,       KC_LSFT,          _______,    _______
-    ),
+/* NUM LAYER (Tri-layer: SYM + NAV = NUM)
+ * ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐       ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+ * │   F1    │   F2    │   F3    │   F4    │   F5    │   F6    │       │   F7    │   F8    │   F9    │   F10   │   F11   │   F12   │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │  OSCmd  │  OSAlt  │ OSCtrl   │ OShft   │   !     │   @     │       │   #     │   $     │   %     │   ^     │   &     │   *     │
+ * ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤       ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+ * │   (     │   )     │   {     │   }     │   <     │   >     │       │   [     │   ]     │   |     │   \     │   /     │   ?     │
+ * └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘       └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+ *                         ┌─────────┬─────────┬─────────┐           ┌─────────┬─────────┬─────────┐
+ *                         │         │         │         │           │         │         │         │
+ *                         └─────────┴─────────┴─────────┘           └─────────┴─────────┴─────────┘
+ */
+[LAYER_NUM] = LAYOUT(
+    KC_F1,     KC_F2,   KC_F3,      KC_F4,      KC_F5,      KC_F6,                  KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
+    OS_CMD,    OS_ALT,  OS_CTRL,    OS_SHFT,    S(KC_1),    S(KC_2),                S(KC_3), S(KC_4), S(KC_5), S(KC_6), S(KC_7), S(KC_8),
+    S(KC_9),   S(KC_0), S(KC_LBRC), S(KC_RBRC), S(KC_COMM), S(KC_DOT),              KC_LBRC, KC_RBRC, PIPE,    KC_BSLS, KC_PSLS, KC_QUES,
+                                    _______,   _______, _______,          _______, _______
+),
 
-    [LAYER_CMD] = LAYOUT(
-KC_NO,     MEH(KC_Q),  MEH(KC_W),  MEH(KC_E),  MEH(KC_R),  MEH(KC_T),        MEH(KC_Y),  KC_VOLD,    KC_MUTE,       KC_VOLU,     MEH(KC_P),       KC_NO,     
-KC_NO,     MEH(KC_A),  MEH(KC_S),  MEH(KC_D),  MEH(KC_F),  MEH(KC_G),        MEH(KC_H),  KC_MPRV,    KC_MPLY,       KC_MNXT,     MEH(KC_SCLN),    KC_NO,     
-KC_NO,     MEH(KC_Z),  MEH(KC_X),  MEH(KC_C),  MEH(KC_V),  MEH(KC_B),        MEH(KC_N),  MEH(KC_M),  MEH(KC_COMM),  MEH(KC_DOT), MEH(KC_SLSH),    KC_NO,     
-                                   _______,    _______,    _______,          KC_LGUI,    _______
-    )
+/* ALT LAYER (Alt-gr symbols for international chars)
+ */
+[LAYER_ALT] = LAYOUT(
+    RALT(KC_Q), RALT(KC_W), RALT(KC_E), RALT(KC_R), RALT(KC_T), RALT(KC_Y),         RALT(KC_U), RALT(KC_I), RALT(KC_O), RALT(KC_P), XXXXXXX, XXXXXXX,
+    RALT(KC_A), RALT(KC_S), RALT(KC_D), RALT(KC_F), RALT(KC_G), RALT(KC_H),         RALT(KC_J), RALT(KC_K), RALT(KC_L), RALT(KC_SCLN), XXXXXXX, XXXXXXX,
+    RALT(KC_Z), RALT(KC_X), RALT(KC_C), RALT(KC_V), RALT(KC_B), RALT(KC_N),         RALT(KC_M), RALT(KC_COMM), RALT(KC_DOT), RALT(KC_SLSH), XXXXXXX, XXXXXXX,
+                                        _______,    NBSP,       KC_LSFT,            _______, _______
+),
+
+/* CMD LAYER (Meh keys for shortcuts + Media)
+ */
+[LAYER_CMD] = LAYOUT(
+    MEH(KC_Q), MEH(KC_W), MEH(KC_E), MEH(KC_R), MEH(KC_T), MEH(KC_Y),         MEH(KC_U), MEH(KC_I), MEH(KC_O), MEH(KC_P), KC_VOLD, KC_VOLU,
+    MEH(KC_A), MEH(KC_S), MEH(KC_D), MEH(KC_F), MEH(KC_G), MEH(KC_H),         MEH(KC_J), MEH(KC_K), MEH(KC_L), MEH(KC_SCLN), KC_MPRV, KC_MNXT,
+    MEH(KC_Z), MEH(KC_X), MEH(KC_C), MEH(KC_V), MEH(KC_B), MEH(KC_N),         MEH(KC_M), MEH(KC_COMM), MEH(KC_DOT), MEH(KC_SLSH), KC_MUTE, KC_MPLY,
+                                     _______,   _______,   _______,           KC_LGUI, _______
+),
+
 };
+
+// ============================================================================
+// ONE-SHOT MODIFIER FUNCTIONS (from keymap-36.c)
+// ============================================================================
 bool is_oneshot_cancel_key(uint16_t keycode) {
     switch (keycode) {
-    case LA_SYM:
-    case LA_NAV:
-        return true;
-    default:
-        return false;
+        case LA_SYM:
+        case LA_NAV:
+            return true;
+        default:
+            return false;
     }
 }
 
 bool is_oneshot_ignored_key(uint16_t keycode) {
     switch (keycode) {
-    case LA_SYM:
-    case LA_NAV:
-    case KC_LSFT:
-    case OS_SHFT:
-    case OS_CTRL:
-    case OS_ALT:
-    case OS_CMD:
-        return true;
-    default:
-        return false;
+        case LA_SYM:
+        case LA_NAV:
+        case KC_LSFT:
+        case OS_SHFT:
+        case OS_CTRL:
+        case OS_ALT:
+        case OS_CMD:
+            return true;
+        default:
+            return false;
     }
 }
 
+// ============================================================================
+// SWAPPER & ONE-SHOT STATE
+// ============================================================================
 bool sw_win_active = false;
 bool sw_tab_active = false;
-
 oneshot_state os_shft_state = os_up_unqueued;
 oneshot_state os_ctrl_state = os_up_unqueued;
 oneshot_state os_alt_state = os_up_unqueued;
 oneshot_state os_cmd_state = os_up_unqueued;
 
+// ============================================================================
+// KEY PROCESSING
+// ============================================================================
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // Handle swapper (alt-tab, ctrl-tab)
     update_swapper(
         &sw_win_active, KC_LALT, KC_TAB, SW_WIN, OS_SHFT,
         keycode, record
@@ -191,7 +274,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         &sw_tab_active, KC_LCTL, KC_TAB, SW_TAB, OS_SHFT,
         keycode, record
     );
-
+    
+    // Handle one-shot modifiers
     update_oneshot(
         &os_shft_state, KC_LSFT, OS_SHFT,
         keycode, record
@@ -208,23 +292,37 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         &os_cmd_state, KC_LCMD, OS_CMD,
         keycode, record
     );
-
+    
     return true;
 }
 
+// ============================================================================
+// LAYER STATE (Tri-layer + Charybdis sniping)
+// ============================================================================
+layer_state_t layer_state_set_user(layer_state_t state) {
+    // Charybdis auto-sniping on pointer layer
+    #ifdef CHARYBDIS_AUTO_SNIPING_ON_LAYER
+    charybdis_set_pointer_sniping_enabled(layer_state_cmp(state, CHARYBDIS_AUTO_SNIPING_ON_LAYER));
+    #endif
+    
+    // Tri-layer: SYM + NAV = NUM
+    return update_tri_layer_state(state, LAYER_SYM, LAYER_NAV, LAYER_NUM);
 }
-// clang-format on
 
+// ============================================================================
+// POINTING DEVICE (Auto pointer layer trigger)
+// ============================================================================
 #ifdef POINTING_DEVICE_ENABLE
 #    ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
 report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
-    if (abs(mouse_report.x) > CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD || abs(mouse_report.y) > CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD) {
+    if (abs(mouse_report.x) > CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD || 
+        abs(mouse_report.y) > CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD) {
         if (auto_pointer_layer_timer == 0) {
             layer_on(LAYER_POINTER);
 #        ifdef RGB_MATRIX_ENABLE
             rgb_matrix_mode_noeeprom(RGB_MATRIX_NONE);
             rgb_matrix_sethsv_noeeprom(HSV_GREEN);
-#        endif // RGB_MATRIX_ENABLE
+#        endif
         }
         auto_pointer_layer_timer = timer_read();
     }
@@ -232,35 +330,21 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
 }
 
 void matrix_scan_user(void) {
-    if (auto_pointer_layer_timer != 0 && TIMER_DIFF_16(timer_read(), auto_pointer_layer_timer) >= CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS) {
+    if (auto_pointer_layer_timer != 0 && 
+        TIMER_DIFF_16(timer_read(), auto_pointer_layer_timer) >= CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS) {
         auto_pointer_layer_timer = 0;
         layer_off(LAYER_POINTER);
 #        ifdef RGB_MATRIX_ENABLE
         rgb_matrix_mode_noeeprom(RGB_MATRIX_DEFAULT_MODE);
-#        endif // RGB_MATRIX_ENABLE
+#        endif
     }
 }
-#    endif // CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
+#    endif
+#endif
 
-#    ifdef CHARYBDIS_AUTO_SNIPING_ON_LAYER
-    layer_state_t layer_state_set_user(layer_state_t state) {
-    // Логика снипинга
-    #ifdef CHARYBDIS_AUTO_SNIPING_ON_LAYER
-    charybdis_set_pointer_sniping_enabled(layer_state_cmp(state, CHARYBDIS_AUTO_SNIPING_ON_LAYER));
-    #endif
-
-    // Логика из keymap-36.c для слоя NUM
-    return update_tri_layer_state(state, LAYER_SYM, LAYER_NAV, LAYER_NUM);
-}
-    
-
-    
-    return state;
-}
-#    endif // CHARYBDIS_AUTO_SNIPING_ON_LAYER
-#endif     // POINTING_DEVICE_ENABLE
-
+// ============================================================================
+// RGB MATRIX (if enabled)
+// ============================================================================
 #ifdef RGB_MATRIX_ENABLE
-// Forward-declare this helper function since it is defined in rgb_matrix.c.
 void rgb_matrix_update_pwm_buffers(void);
 #endif
